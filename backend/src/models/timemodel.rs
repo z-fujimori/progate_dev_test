@@ -3,7 +3,8 @@ use crate::schema::times;
 use diesel::prelude::*;
 
 #[derive(Queryable, Insertable, Serialize, Deserialize)]
-#[table_name = "times"]
+// #[table_name = "times"]
+#[diesel(table_name = times)]
 pub struct CreateTime {
     pub time_second: i32,
     pub user_id: String,

@@ -25,6 +25,7 @@ use crate::schema::user_voices::dsl::*;
 struct Info {
     qiita_id: String,
     user_id: String,
+    sprit_len: i32,
 }
 fn db_connect() -> PgConnection {
     dotenv().ok();
@@ -324,7 +325,7 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
     };
     let audio_text = response_data.body_text.replace("\r\n", "").replace("```", "").replace("\n", "").replace("#", "");
 
-    let split_length:usize = 400;
+    let split_length:usize = info.sprit_len as usize;
 
     let end_checktext_time = Instant::now();
     println!("整形終了 : {:?}",end_checktext_time.checked_duration_since(end_qiita_time));
@@ -334,7 +335,9 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
     let chunks = split_text_length(&audio_text, split_length); //　文字分割
     let mut audio_binary: Vec<u8> = Vec::new();
     let mut header: Vec<u8> = Vec::with_capacity(44);
-    let mut first_iteration = true;
+    // let mut first_iteration = true;
+    println!("一個分の長さ : {}",chunks[0].len());
+    println!("一個分のテキスト : {}",chunks[0]);
     
     let chunks_len = chunks.len();
     let audio_map = Arc::new(Mutex::new(HashMap::new()));
@@ -346,15 +349,19 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
         let audio_map = Arc::clone(&audio_map);
 
         let task = tokio::spawn(async move {
-            println!("Task {}  ",i);
-            let url = format!("http://voicevox:50021/audio_query?text={chunk}&speaker=3");
+            let vv_number = i % 3;
+            println!("Task : {}  vvNumber {}",i, vv_number);
+            let url = format!("http://voicevox{vv_number}:50021/audio_query?text={chunk}&speaker=3");
+            println!("{}",url);
             // let url = format!("https://vvtk3mgv4r.us-west-2.awsapprunner.com/audio_query?text={chunk}&speaker=3");
             let response = client.post(&url).send().await?;
 
-            println!("Check : {}",i);
+            println!("Check : {}  vvNumber {}",i, vv_number);
+
+            let url = format!("http://voicevox{vv_number}:50021/synthesis?speaker=3");
 
             let synthesis_response = client
-                .post("http://voicevox:50021/synthesis?speaker=3")
+                .post(&url)
                 // .post("https://vvtk3mgv4r.us-west-2.awsapprunner.com/synthesis?speaker=3")
                 .header("Content-Type", "application/json")
                 .header("Accept", "audio/wav")
@@ -366,7 +373,7 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
             let mut audio_map = audio_map.lock().unwrap();
             audio_map.insert(i, audio_data);
 
-            println!("End {}  ",i);
+            println!("End : {}  vvNumber {}",i, vv_number);
 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
@@ -390,7 +397,7 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
         if i == 0 {
             header.extend_from_slice(&audio_data.to_vec()[0..44]);
             audio_binary.extend_from_slice(&audio_data.to_vec()[44..]);
-            first_iteration = false;
+            // first_iteration = false;
         } else {
             audio_binary.extend_from_slice(&audio_data.to_vec()[44..]);
         }
@@ -405,6 +412,8 @@ async fn process_qiita_tokio(info: web::Json<Info>) -> Result<HttpResponse, Box<
     let mut buffer: Vec<u8> = Vec::new();
     buffer.extend_from_slice(&header);
     buffer.extend_from_slice(&audio_binary);
+
+    println!("{:?}",buffer);
 
     let input_voice = CreateVoice {
         voice_data: buffer.clone(), 

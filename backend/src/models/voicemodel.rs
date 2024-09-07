@@ -3,7 +3,8 @@ use crate::schema::voices;
 use diesel::prelude::*;
 
 #[derive(Queryable, Insertable, Serialize, Deserialize)]
-#[table_name="voices"]
+// #[table_name="voices"]
+#[diesel(table_name = voices)]
 pub struct CreateVoice {
     pub voice_data: Vec<u8>,
     pub qiita_id: String,

@@ -3,7 +3,8 @@ use crate::schema::rooms::{self};
 use diesel::prelude::*;
 
 #[derive(Queryable, Insertable, Serialize, Deserialize)]
-#[table_name="rooms"]
+// #[table_name="rooms"]
+#[diesel(table_name = rooms)]
 pub struct CreateRoom {
     pub name: String,
 }

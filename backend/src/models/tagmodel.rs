@@ -3,7 +3,8 @@ use crate::schema::tags;
 use diesel::prelude::*;
 
 #[derive(Queryable, Insertable, Serialize, Deserialize)]
-#[table_name = "tags"]
+// #[table_name = "tags"]
+#[diesel(table_name = tags)]
 pub struct CreateTag {
     pub title: String,
     pub user_id: String
